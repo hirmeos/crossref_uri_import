@@ -1,0 +1,173 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Find identifiers in Crossref and submit them to the identifier translation service if they are missing.
+
+usage: python run
+
+(c) Javier Arias, Open Book Publishers, October 2018
+Use of this software is governed by the terms of the MIT license
+
+Dependencies:
+  httplib2==0.10.3
+"""
+
+import os
+import sys
+import csv
+import json
+import httplib2
+
+USER_AGENT        = os.environ['USER_AGENT']
+CROSSREF_ROWS     = os.environ['CROSSREF_ROWS']
+REPORT_DUPLICATES = os.environ['REPORT_DUPLICATES'] in ["True", "true", "t", 1]
+URI_API_ENDP      = os.environ['URI_API_ENDP']
+URI_API_USER      = os.environ['URI_API_USER']
+URI_API_PASS      = os.environ['URI_API_PASS']
+AUTH_API_ENDP     = os.environ['AUTH_API_ENDP']
+URI_API_WORKS     = os.environ['URI_API_WORKS']
+URI_API_URIS      = os.environ['URI_API_URIS']
+URI_API_TITLES    = os.environ['URI_API_TITLES']
+
+def get_token(url, email, passwd):
+    h = httplib2.Http()
+    credentials = {'email': email, 'password': passwd}
+    headers = {'content-type': 'application/json'}
+    res, content = h.request(url, 'POST', json.dumps(credentials), headers)
+    try:
+        assert res.status == 200
+    except AssertionError:
+        raise ValueError(content)
+    return json.loads(content)['data'][0]['token']
+
+def get_all_books():
+    url = URI_API_WORKS + '?filter=work_type:monograph,work_type:book,uri_scheme:info:doi,uri_scheme:urn:isbn,uri_scheme:http,uri_scheme:https'
+    h = httplib2.Http()
+    res, content = h.request(url, 'GET',
+        headers={'Authorization': 'Bearer ' + API_JWTOKEN})
+    try:
+        assert res.status == 200
+    except AssertionError:
+        raise ValueError(content)
+
+    return json.loads(content)['data']
+
+def get_related_works(serialised_isbns, wtype):
+    url = "https://api.crossref.org/works?filter=type:" + wtype + "," + serialised_isbns + "&select=title,DOI,ISBN,type,URL&rows=" + CROSSREF_ROWS
+    h = httplib2.Http()
+    res, content = h.request(url, 'GET', headers={'User-Agent': USER_AGENT})
+    try:
+        assert res.status == 200
+    except AssertionError:
+        raise ValueError(content)
+
+    return json.loads(content)['message']['items']
+
+def submit(url, data):
+    h = httplib2.Http()
+    headers = {'content-type': 'application/json',
+               'Authorization': 'Bearer ' + API_JWTOKEN}
+    res, content = h.request(url, 'POST', json.dumps(data), headers)
+    try:
+        assert res.status == 200
+    except AssertionError:
+        sys.stderr.write(content)
+
+def get_doi_from_uris(uris):
+    for uri in uris:
+        if uri['URI_parts']['scheme'] == 'info:doi':
+            return uri['URI_parts']['value']
+    return ''
+
+def get_isbns_from_uris(uris):
+    isbns = []
+    for uri in uris:
+        if uri['URI_parts']['scheme'] == 'urn:isbn':
+            isbns.append(uri['URI_parts']['value'])
+    return isbns
+
+def get_urls_from_uris(uris):
+    urls = []
+    for uri in uris:
+        if uri['URI_parts']['scheme'] in ['http', 'https']:
+            urls.append(uri['URI'])
+    return urls
+
+def get_uri_from_uris(uri, uris):
+    for e in uris:
+        if e['URI'] == uri:
+            return e['URI']
+    return ''
+
+def serialise_isbn(isbn):
+    return 'isbn:' + isbn +','
+
+def standarise_uri(uri, canonical="false"):
+    return {'URI': uri, 'canonical': canonical}
+
+def standarise_uris(uris):
+    return [standarise_uri(e) for e in uris]
+
+def process_works(works):
+    for work in works:
+        # get all pertinent identifiers from the record
+        try:
+            uuid  = work['UUID']
+            uris  = work['URI']
+            isbns = get_isbns_from_uris(uris)
+            doi   = get_doi_from_uris(uris)
+            wtype = work['type']
+            assert uuid and isbns and doi
+        except AssertionError:
+            sys.stderr.write("Malformed record: " + str(work) + "\n")
+            sys.exit(1)
+
+        # query crossref to find URIs associated to this book's ISBNs
+        try:
+            serialised_isbns = ''.join([serialise_isbn(isbn) for isbn in isbns])
+            related_works = get_related_works(serialised_isbns, wtype)
+            assert related_works
+        except:
+            sys.stderr.write("Record not found in Crossreff: " + doi + "\n")
+            continue
+
+        # optional: output error if there are multiple deposits for this book
+        try:
+            assert len(related_works) == 1 and REPORT_DUPLICATES
+        except:
+            sys.stderr.write("More thank one match! " + str(related_works))
+
+        # insert input URIs and titles if not already in database
+        for related in related_works:
+            isbns = ["urn:isbn:" + i for i in related['ISBN']]
+            doi = "info:doi:" + related['DOI']
+            input_uris = standarise_uris(isbns)
+            input_uris.append(standarise_uri(doi))
+            input_uris.append(standarise_uri(related['URL']))
+
+            for uri in input_uris:
+                candidate = get_uri_from_uris(uri['URI'], uris)
+                try:
+                    assert candidate == ''
+                except AssertionError:
+                    continue
+                new_uri = {'UUID': uuid, 'URI': uri['URI']}
+                submit(URI_API_URIS, new_uri)
+            for title in related['title']:
+                try:
+                    assert title not in work['title']
+                except AssertionError:
+                    continue
+                new_title = {'UUID': uuid, 'title': title}
+                submit(URI_API_TITLES, new_title)
+
+def run():
+    assert API_JWTOKEN
+    all_works = get_all_books()
+    assert all_works
+    process_works(all_works)
+
+API_JWTOKEN = get_token(AUTH_API_ENDP, URI_API_USER, URI_API_PASS)
+
+if __name__ == '__main__':
+    run()
