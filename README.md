@@ -1,8 +1,8 @@
-# OBP Crossref chapter import
+# Crossref URI importer
 
-Find missing chapters and/or chapter identifiers in Crossref and submit new findings to the identifier translation service.
+Find identifiers in Crossref and submit them to the identifier translation service if they are missing.
 
 ## Run via crontab
 ```
-0 13,21 * * * docker run --rm --name "chapter_importer" --env-file /path/to/config.env openbookpublishers/obp_crossref_chapter_import
+0 13,21 * * * docker run --rm --name "uri_importer" --env-file /path/to/config.env openbookpublishers/crossref_uri_import
 ```
