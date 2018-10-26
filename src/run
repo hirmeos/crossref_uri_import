@@ -45,7 +45,7 @@ def get_all_books():
     url = URI_API_WORKS + '?filter=work_type:monograph,work_type:book,uri_scheme:info:doi,uri_scheme:urn:isbn,uri_scheme:http,uri_scheme:https'
     h = httplib2.Http()
     res, content = h.request(url, 'GET',
-        headers={'Authorization': 'Bearer ' + API_JWTOKEN})
+                             headers={'Authorization': 'Bearer ' + API_JWTOKEN})
     try:
         assert res.status == 200
     except AssertionError:
