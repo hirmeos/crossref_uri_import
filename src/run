@@ -138,14 +138,14 @@ def process_works(works):
             serialised_isbns = ''.join([serialise_isbn(isbn) for isbn in isbns])
             related_works = get_related_works(serialised_isbns, wtype)
             assert related_works
-        except:
+        except ValueError, AssertionError:
             sys.stderr.write("Record not found in Crossreff: " + doi + "\n")
             continue
 
         # optional: output error if there are multiple deposits for this book
         try:
             assert len(related_works) == 1 and REPORT_DUPLICATES
-        except:
+        except ValueError, AssertionError:
             sys.stderr.write("More thank one match! " + str(related_works))
 
         # insert input URIs and titles if not already in database
