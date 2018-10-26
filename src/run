@@ -179,6 +179,7 @@ def run():
     assert all_works
     process_works(all_works)
 
+
 API_JWTOKEN = get_token(AUTH_API_ENDP, URI_API_USER, URI_API_PASS)
 
 if __name__ == '__main__':
