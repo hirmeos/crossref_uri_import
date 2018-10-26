@@ -11,4 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 
 COPY ./src/* ./
 
+# lint it
+RUN flake8 --ignore E221 ./run
+
 CMD ["python", "run"]
