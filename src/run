@@ -28,6 +28,7 @@ URI_API_WORKS     = os.environ['URI_API_WORKS']
 URI_API_URIS      = os.environ['URI_API_URIS']
 URI_API_TITLES    = os.environ['URI_API_TITLES']
 
+
 def get_token(url, email, passwd):
     h = httplib2.Http()
     credentials = {'email': email, 'password': passwd}
@@ -38,6 +39,7 @@ def get_token(url, email, passwd):
     except AssertionError:
         raise ValueError(content)
     return json.loads(content)['data'][0]['token']
+
 
 def get_all_books():
     url = URI_API_WORKS + '?filter=work_type:monograph,work_type:book,uri_scheme:info:doi,uri_scheme:urn:isbn,uri_scheme:http,uri_scheme:https'
@@ -51,6 +53,7 @@ def get_all_books():
 
     return json.loads(content)['data']
 
+
 def get_related_works(serialised_isbns, wtype):
     url = "https://api.crossref.org/works?filter=type:" + wtype + "," + serialised_isbns + "&select=title,DOI,ISBN,type,URL&rows=" + CROSSREF_ROWS
     h = httplib2.Http()
@@ -62,6 +65,7 @@ def get_related_works(serialised_isbns, wtype):
 
     return json.loads(content)['message']['items']
 
+
 def submit(url, data):
     h = httplib2.Http()
     headers = {'content-type': 'application/json',
@@ -72,11 +76,13 @@ def submit(url, data):
     except AssertionError:
         sys.stderr.write(content)
 
+
 def get_doi_from_uris(uris):
     for uri in uris:
         if uri['URI_parts']['scheme'] == 'info:doi':
             return uri['URI_parts']['value']
     return ''
+
 
 def get_isbns_from_uris(uris):
     isbns = []
@@ -85,6 +91,7 @@ def get_isbns_from_uris(uris):
             isbns.append(uri['URI_parts']['value'])
     return isbns
 
+
 def get_urls_from_uris(uris):
     urls = []
     for uri in uris:
@@ -92,20 +99,25 @@ def get_urls_from_uris(uris):
             urls.append(uri['URI'])
     return urls
 
+
 def get_uri_from_uris(uri, uris):
     for e in uris:
         if e['URI'] == uri:
             return e['URI']
     return ''
 
+
 def serialise_isbn(isbn):
     return 'isbn:' + isbn +','
+
 
 def standarise_uri(uri, canonical="false"):
     return {'URI': uri, 'canonical': canonical}
 
+
 def standarise_uris(uris):
     return [standarise_uri(e) for e in uris]
+
 
 def process_works(works):
     for work in works:
@@ -159,6 +171,7 @@ def process_works(works):
                     continue
                 new_title = {'UUID': uuid, 'title': title}
                 submit(URI_API_TITLES, new_title)
+
 
 def run():
     assert API_JWTOKEN
