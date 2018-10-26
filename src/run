@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Find identifiers in Crossref and submit them to the identifier translation service if they are missing.
+Find identifiers in Crossref and submit them to the identifier translation
+service if they are missing.
 
 usage: python run
 
@@ -42,10 +43,12 @@ def get_token(url, email, passwd):
 
 
 def get_all_books():
-    url = URI_API_WORKS + '?filter=work_type:monograph,work_type:book,uri_scheme:info:doi,uri_scheme:urn:isbn,uri_scheme:http,uri_scheme:https'
+    filters = 'work_type:monograph,work_type:book,' \
+              + 'uri_scheme:info:doi,uri_scheme:urn:isbn,' \
+              + 'uri_scheme:http,uri_scheme:https'
+    url = URI_API_WORKS + '?filter=' + filters
     h = httplib2.Http()
-    res, content = h.request(url, 'GET',
-                             headers={'Authorization': 'Bearer ' + API_JWTOKEN})
+    res, content = h.request(url, 'GET', headers={'Authorization': AUTH})
     try:
         assert res.status == 200
     except AssertionError:
@@ -55,7 +58,11 @@ def get_all_books():
 
 
 def get_related_works(serialised_isbns, wtype):
-    url = "https://api.crossref.org/works?filter=type:" + wtype + "," + serialised_isbns + "&select=title,DOI,ISBN,type,URL&rows=" + CROSSREF_ROWS
+    api = "https://api.crossref.org/works"
+    filters = "filter=type:" + wtype + "," + serialised_isbns
+    select = "select=title,DOI,ISBN,type,URL"
+    rows = "rows=" + CROSSREF_ROWS
+    url = api + '?' + filters + '&' + select + '&' + rows
     h = httplib2.Http()
     res, content = h.request(url, 'GET', headers={'User-Agent': USER_AGENT})
     try:
@@ -68,8 +75,7 @@ def get_related_works(serialised_isbns, wtype):
 
 def submit(url, data):
     h = httplib2.Http()
-    headers = {'content-type': 'application/json',
-               'Authorization': 'Bearer ' + API_JWTOKEN}
+    headers = {'content-type': 'application/json', 'Authorization': AUTH}
     res, content = h.request(url, 'POST', json.dumps(data), headers)
     try:
         assert res.status == 200
@@ -135,7 +141,7 @@ def process_works(works):
 
         # query crossref to find URIs associated to this book's ISBNs
         try:
-            serialised_isbns = ''.join([serialise_isbn(isbn) for isbn in isbns])
+            serialised_isbns = ''.join([serialise_isbn(i) for i in isbns])
             related_works = get_related_works(serialised_isbns, wtype)
             assert related_works
         except ValueError, AssertionError:
@@ -181,6 +187,7 @@ def run():
 
 
 API_JWTOKEN = get_token(AUTH_API_ENDP, URI_API_USER, URI_API_PASS)
+AUTH = 'Bearer ' + API_JWTOKEN
 
 if __name__ == '__main__':
     run()
