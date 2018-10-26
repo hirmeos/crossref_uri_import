@@ -108,7 +108,7 @@ def get_uri_from_uris(uri, uris):
 
 
 def serialise_isbn(isbn):
-    return 'isbn:' + isbn +','
+    return 'isbn:' + isbn + ','
 
 
 def standarise_uri(uri, canonical="false"):
