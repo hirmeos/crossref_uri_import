@@ -1,4 +1,6 @@
 # Crossref URI importer
+[![Build Status](https://travis-ci.org/hirmeos/crossref_uri_import.svg?branch=master)](https://travis-ci.org/hirmeos/crossref_uri_import)
+
 
 Find identifiers in Crossref and submit them to the identifier translation service if they are missing.
 
