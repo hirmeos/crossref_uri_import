@@ -28,6 +28,7 @@ AUTH_API_ENDP     = os.environ['AUTH_API_ENDP']
 URI_API_WORKS     = os.environ['URI_API_WORKS']
 URI_API_URIS      = os.environ['URI_API_URIS']
 URI_API_TITLES    = os.environ['URI_API_TITLES']
+EXCLUDED_DOIS     = json.loads(os.getenv('EXCLUDED_DOIS'))
 
 
 def get_token(url, email, passwd):
@@ -145,7 +146,8 @@ def process_works(works):
             related_works = get_related_works(serialised_isbns, wtype)
             assert related_works
         except (ValueError, AssertionError):
-            sys.stderr.write("Record not found in Crossreff: " + doi + "\n")
+            if doi not in EXCLUDED_DOIS:
+                sys.stderr.write("Record not found in Crossreff: %s\n" % (doi))
             continue
 
         # optional: output error if there are multiple deposits for this book
