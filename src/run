@@ -28,6 +28,7 @@ AUTH_API_ENDP     = os.environ['AUTH_API_ENDP']
 URI_API_WORKS     = os.environ['URI_API_WORKS']
 URI_API_URIS      = os.environ['URI_API_URIS']
 URI_API_TITLES    = os.environ['URI_API_TITLES']
+IGNORED_DOIS      = json.loads(os.getenv('IGNORED_DOIS'))
 EXCLUDED_DOIS     = json.loads(os.getenv('EXCLUDED_DOIS'))
 
 
@@ -140,13 +141,16 @@ def process_works(works):
             sys.stderr.write("Malformed record: " + str(work) + "\n")
             sys.exit(1)
 
+        if doi in EXCLUDED_DOIS:
+            continue
+
         # query crossref to find URIs associated to this book's ISBNs
         try:
             serialised_isbns = ''.join([serialise_isbn(i) for i in isbns])
             related_works = get_related_works(serialised_isbns, wtype)
             assert related_works
         except (ValueError, AssertionError):
-            if doi not in EXCLUDED_DOIS:
+            if doi not in IGNORED_DOIS:
                 sys.stderr.write("Record not found in Crossreff: %s\n" % (doi))
             continue
 
