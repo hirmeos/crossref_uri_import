@@ -62,7 +62,7 @@ def get_all_books():
 def get_related_works(serialised_isbns, wtype):
     api = "https://api.crossref.org/works"
     filters = "filter=type:" + wtype + "," + serialised_isbns
-    select = "select=title,DOI,ISBN,type,URL"
+    select = "select=title,DOI,ISBN,type,URL,link"
     rows = "rows=" + CROSSREF_ROWS
     url = api + '?' + filters + '&' + select + '&' + rows
     h = httplib2.Http()
@@ -167,6 +167,13 @@ def process_works(works):
             input_uris = standarise_uris(isbns)
             input_uris.append(standarise_uri(doi))
             input_uris.append(standarise_uri(related['URL']))
+
+            # Text-mining and similarity-checking URLs may be found in 'link'
+            try:
+                for l in related['link']:
+                    input_uris.append(standarise_uri(l['URL']))
+            except KeyError:
+                pass
 
             for uri in input_uris:
                 candidate = get_uri_from_uris(uri['URI'], uris)
