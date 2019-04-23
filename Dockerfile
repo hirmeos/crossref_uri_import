@@ -1,7 +1,4 @@
-FROM python:2
-
-RUN apt-get update && apt-get upgrade -y && \
-    pip install --upgrade pip
+FROM python:3.5
 
 WORKDIR /usr/src/app
 
