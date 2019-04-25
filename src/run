@@ -41,7 +41,7 @@ def get_token(url, email, passwd):
         assert res.status == 200
     except AssertionError:
         raise ValueError(content)
-    return json.loads(content)['data'][0]['token']
+    return json.loads(content.decode('utf-8'))['data'][0]['token']
 
 
 def get_all_books():
@@ -56,7 +56,7 @@ def get_all_books():
     except AssertionError:
         raise ValueError(content)
 
-    return json.loads(content)['data']
+    return json.loads(content.decode('utf-8'))['data']
 
 
 def get_related_works(serialised_isbns, wtype):
@@ -70,7 +70,7 @@ def get_related_works(serialised_isbns, wtype):
     try:
         assert res.status == 200
     except AssertionError:
-        raise ValueError(content)
+        raise ValueError(content.decode('utf-8'))
 
     return json.loads(content)['message']['items']
 
@@ -82,7 +82,7 @@ def submit(url, data):
     try:
         assert res.status == 200
     except AssertionError:
-        sys.stderr.write(content)
+        sys.stderr.write(content.decode('utf-8'))
 
 
 def get_doi_from_uris(uris):
