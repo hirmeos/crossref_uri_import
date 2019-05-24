@@ -32,7 +32,7 @@ IGNORED_DOIS      = json.loads(os.getenv('IGNORED_DOIS'))
 EXCLUDED_DOIS     = json.loads(os.getenv('EXCLUDED_DOIS'))
 
 
-def get_token(self, url, email, passwd):
+def get_token(url, email, passwd):
     h = httplib2.Http()
     credentials = {'email': email, 'password': passwd}
     headers = {'content-type': 'application/json'}
