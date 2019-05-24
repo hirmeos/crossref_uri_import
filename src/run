@@ -32,15 +32,13 @@ IGNORED_DOIS      = json.loads(os.getenv('IGNORED_DOIS'))
 EXCLUDED_DOIS     = json.loads(os.getenv('EXCLUDED_DOIS'))
 
 
-def get_token(url, email, passwd):
+def get_token(self, url, email, passwd):
     h = httplib2.Http()
     credentials = {'email': email, 'password': passwd}
     headers = {'content-type': 'application/json'}
     res, content = h.request(url, 'POST', json.dumps(credentials), headers)
-    try:
-        assert res.status == 200
-    except AssertionError:
-        raise ValueError(content)
+    if res.status != 200:
+        raise ValueError(content.decode('utf-8'))
     return json.loads(content.decode('utf-8'))['data'][0]['token']
 
 
@@ -51,11 +49,8 @@ def get_all_books():
     url = URI_API_WORKS + '?filter=' + filters
     h = httplib2.Http()
     res, content = h.request(url, 'GET', headers={'Authorization': AUTH})
-    try:
-        assert res.status == 200
-    except AssertionError:
-        raise ValueError(content)
-
+    if res.status != 200:
+        raise ValueError(content.decode('utf-8'))
     return json.loads(content.decode('utf-8'))['data']
 
 
@@ -67,11 +62,8 @@ def get_related_works(serialised_isbns, wtype):
     url = api + '?' + filters + '&' + select + '&' + rows
     h = httplib2.Http()
     res, content = h.request(url, 'GET', headers={'User-Agent': USER_AGENT})
-    try:
-        assert res.status == 200
-    except AssertionError:
+    if res.status != 200:
         raise ValueError(content.decode('utf-8'))
-
     return json.loads(content.decode('utf-8'))['message']['items']
 
 
@@ -79,10 +71,8 @@ def submit(url, data):
     h = httplib2.Http()
     headers = {'content-type': 'application/json', 'Authorization': AUTH}
     res, content = h.request(url, 'POST', json.dumps(data), headers)
-    try:
-        assert res.status == 200
-    except AssertionError:
-        sys.stderr.write(content.decode('utf-8'))
+    if res.status != 200:
+        print(content.decode('utf-8'), file=sys.stderr)
 
 
 def get_doi_from_uris(uris):
@@ -136,7 +126,8 @@ def process_works(works):
             isbns = get_isbns_from_uris(uris)
             doi   = get_doi_from_uris(uris)
             wtype = work['type']
-            assert uuid and isbns and doi
+            if not uuid or not isbns or not doi:
+                raise AssertionError
         except AssertionError:
             sys.stderr.write("Malformed record: " + str(work) + "\n")
             sys.exit(1)
@@ -148,7 +139,8 @@ def process_works(works):
         try:
             serialised_isbns = ''.join([serialise_isbn(i) for i in isbns])
             related_works = get_related_works(serialised_isbns, wtype)
-            assert related_works
+            if not related_works:
+                raise AssertionError
         except (ValueError, AssertionError):
             if doi not in IGNORED_DOIS:
                 sys.stderr.write("Record not found in Crossreff: %s\n" % (doi))
@@ -156,7 +148,8 @@ def process_works(works):
 
         # optional: output error if there are multiple deposits for this book
         try:
-            assert len(related_works) == 1 and REPORT_DUPLICATES
+            if len(related_works) != 1 and REPORT_DUPLICATES:
+                raise AssertionError
         except (ValueError, AssertionError):
             sys.stderr.write("More thank one match! " + str(related_works))
 
@@ -177,25 +170,23 @@ def process_works(works):
 
             for uri in input_uris:
                 candidate = get_uri_from_uris(uri['URI'], uris)
-                try:
-                    assert candidate == ''
-                except AssertionError:
+                if candidate != '':
                     continue
                 new_uri = {'UUID': uuid, 'URI': uri['URI']}
                 submit(URI_API_URIS, new_uri)
             for title in related['title']:
-                try:
-                    assert title not in work['title']
-                except AssertionError:
+                if title in work['title']:
                     continue
                 new_title = {'UUID': uuid, 'title': title}
                 submit(URI_API_TITLES, new_title)
 
 
 def run():
-    assert API_JWTOKEN
+    if not API_JWTOKEN:
+        raise AssertionError('Could not obtain JWT. Check credentials.')
     all_works = get_all_books()
-    assert all_works
+    if not all_works:
+        AssertionError('Could not obtain publications. Check API.')
     process_works(all_works)
 
 
