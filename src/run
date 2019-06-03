@@ -22,9 +22,11 @@ USER_AGENT        = os.environ['USER_AGENT']
 CROSSREF_ROWS     = os.environ['CROSSREF_ROWS']
 REPORT_DUPLICATES = os.environ['REPORT_DUPLICATES'] in ["True", "true", "t", 1]
 URI_API_ENDP      = os.environ['URI_API_ENDP']
-URI_API_USER      = os.environ['URI_API_USER']
-URI_API_PASS      = os.environ['URI_API_PASS']
-AUTH_API_ENDP     = os.environ['AUTH_API_ENDP']
+JWT_DISABLED = os.environ['JWT_DISABLED'] in ('True', 'true')
+if not JWT_DISABLED:
+    URI_API_USER      = os.environ['URI_API_USER']
+    URI_API_PASS      = os.environ['URI_API_PASS']
+    AUTH_API_ENDP     = os.environ['AUTH_API_ENDP']
 URI_API_WORKS     = os.environ['URI_API_WORKS']
 URI_API_URIS      = os.environ['URI_API_URIS']
 URI_API_TITLES    = os.environ['URI_API_TITLES']
@@ -48,7 +50,8 @@ def get_all_books():
               + 'uri_scheme:http,uri_scheme:https'
     url = URI_API_WORKS + '?filter=' + filters
     h = httplib2.Http()
-    res, content = h.request(url, 'GET', headers={'Authorization': AUTH})
+    headers = {} if JWT_DISABLED else {'Authorization': AUTH}
+    res, content = h.request(url, 'GET', headers=headers)
     if res.status != 200:
         raise ValueError(content.decode('utf-8'))
     return json.loads(content.decode('utf-8'))['data']
@@ -69,7 +72,10 @@ def get_related_works(serialised_isbns, wtype):
 
 def submit(url, data):
     h = httplib2.Http()
-    headers = {'content-type': 'application/json', 'Authorization': AUTH}
+    if JWT_DISABLED:
+        headers = {'content-type': 'application/json'}
+    else:
+        headers = {'content-type': 'application/json', 'Authorization': AUTH}
     res, content = h.request(url, 'POST', json.dumps(data), headers)
     if res.status != 200:
         print(content.decode('utf-8'), file=sys.stderr)
@@ -182,7 +188,7 @@ def process_works(works):
 
 
 def run():
-    if not API_JWTOKEN:
+    if not JWT_DISABLED and not API_JWTOKEN:
         raise AssertionError('Could not obtain JWT. Check credentials.')
     all_works = get_all_books()
     if not all_works:
@@ -190,8 +196,9 @@ def run():
     process_works(all_works)
 
 
-API_JWTOKEN = get_token(AUTH_API_ENDP, URI_API_USER, URI_API_PASS)
-AUTH = 'Bearer ' + API_JWTOKEN
+if not JWT_DISABLED:
+    API_JWTOKEN = get_token(AUTH_API_ENDP, URI_API_USER, URI_API_PASS)
+    AUTH = 'Bearer ' + API_JWTOKEN
 
 if __name__ == '__main__':
     run()
