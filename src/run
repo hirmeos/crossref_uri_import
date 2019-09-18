@@ -22,7 +22,7 @@ USER_AGENT        = os.environ['USER_AGENT']
 CROSSREF_ROWS     = os.environ['CROSSREF_ROWS']
 REPORT_DUPLICATES = os.environ['REPORT_DUPLICATES'] in ["True", "true", "t", 1]
 URI_API_ENDP      = os.environ['URI_API_ENDP']
-JWT_DISABLED = os.environ['JWT_DISABLED'] in ('True', 'true')
+JWT_DISABLED = str(os.environ.get('JWT_DISABLED')).lower() in ('true', '1')
 if not JWT_DISABLED:
     URI_API_USER      = os.environ['URI_API_USER']
     URI_API_PASS      = os.environ['URI_API_PASS']
